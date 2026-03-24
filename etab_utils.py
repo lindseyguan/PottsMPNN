@@ -36,7 +36,7 @@ def merge_duplicate_pairE(h_E, E_idx, denom=2):
         edge_index_row = torch.cat([e.view(-1) for e in split_E_idxs], dim=0)
         edge_index_col = torch.repeat_interleave(torch.arange(edge_index_row.shape[0] // k), k).to(h_E.device)
         edge_index = torch.stack([edge_index_row, edge_index_col])
-        merge = merge_duplicate_pairE_geometric(h_E_geometric, edge_index, denom=denom)
+        merge = merge_duplicate_pairE_geometric(h_E_geometric, edge_index, k, denom=denom)
         merge = merge.view(h_E.shape)
 
         return merge
@@ -121,7 +121,7 @@ def merge_duplicate_pairE_sparse(h_E, E_idx):
     return merged_etab
 
 
-def merge_duplicate_pairE_geometric(h_E, edge_index, denom=2):
+def merge_duplicate_pairE_geometric(h_E, edge_index, k, denom=2):
     """ Sparse method to average pair energy tables across bidirectional edges with Torch Geometric.
 
     TERMinator edges are represented as two bidirectional edges, and to allow for
@@ -141,6 +141,8 @@ def merge_duplicate_pairE_geometric(h_E, edge_index, denom=2):
     E_idx : torch.LongTensor
         Torch Geometric sparse edge indices
         Shape : 2 x n_edge
+    k : int
+        Number of neighbors (including self) for each node
 
     Returns
     -------
@@ -159,7 +161,7 @@ def merge_duplicate_pairE_geometric(h_E, edge_index, denom=2):
     reverse_idx = mapping[row_idx]
     mask = (reverse_idx >= 0)
     if denom != 2:
-        mask[(reverse_idx % 48 == 0)] = False
+        mask[(reverse_idx % k == 0)] = False
     reverse_idx = reverse_idx[mask]
 
     reverse_h_E = h_E[mask]

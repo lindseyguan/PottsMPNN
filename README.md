@@ -160,8 +160,8 @@ We provide vanilla and soluble model weights. For each, we provide three version
 
 ### Prediction options
 * **`inference.ddG`**: (bool) If True, computes ΔΔG (mutant - wildtype); if False, outputs raw ΔG (True by default, ΔG values are less interpretable).
-* **`inference.mean_norm`**: (bool) Whether to center ΔΔG predictions around 0 (can sometimes help compare predictions from one protein to another).
-* * **`inference.max_tokens`**: (int) Max tokens to use when batching energy predictions (lower is slower but less memory intensive).
+* **`inference.mean_norm`**: (bool) Whether to center ΔΔG predictions around 0 (can sometimes help compare predictions from one protein to another; the results in the paper apply this centering).
+* **`inference.max_tokens`**: (int) Max tokens to use when batching energy predictions (lower is slower but less memory intensive).
 * **`inference.filter`**: (bool) Whether to only return predictions for mutant sequences with experimental energies.
 * **`inference.binding_energy_json`**: Path to JSON with information about how chains should be separated for binding energy calculation for optimization (required for binding energy optimization). For example, `prot: [[A, B], [C, D]]` indicates that the binding energy should be calculated between the A-B and C-D complexes; `prot: [[A, B], [C], [D]]` indicates that the binding energy should be calculated between the A-B complex and chains C and D.
 * **`inference.noise`**: (float) Amont of noise to add to structures during inference (model only evaluated with 0 noise).

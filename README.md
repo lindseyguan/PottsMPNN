@@ -2,6 +2,9 @@
 
 Code for running PottsMPNN to generate protein sequences and predict energies of mutations.
 
+[![DOI](https://zenodo.org/badge/1124004945.svg)](https://doi.org/10.5281/zenodo.18274667)
+
+
 ---
 
 ## 1. Running PottsMPNN

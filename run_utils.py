@@ -128,7 +128,7 @@ def optimize_sequence(seq, etab, E_idx, mask, chain_mask, opt_type, seq_encoder,
                     partition_mask = partition_index == partition_index[0,pos]
                     partition_seq = seq[:, partition_mask[0]]
                     partition_pos = partition_mask[:, :pos].sum(dim=1).cpu().item()
-                    partition_etab, partition_E_idx, _seq = partition_etabs[partition_index[0, pos].cpu().item()]
+                    partition_etab, partition_E_idx, _ = partition_etabs[partition_index[0, pos].cpu().item()]
                     unbound_predicted_E = etab_utils.positional_potts_energy(
                         partition_etab, partition_E_idx, partition_seq, partition_pos
                     )
@@ -351,7 +351,7 @@ def tied_optimize_sequence(seq, etab, E_idx, mask, chain_mask, opt_type, seq_enc
                         partition_mask = partition_index == partition_index[0,pos]
                         partition_seq = seq[:, partition_mask[0]]
                         partition_pos = partition_mask[:, :pos].sum(dim=1).cpu().item()
-                        partition_etab, partition_E_idx = partition_etabs[partition_index[0, pos].cpu().item()]
+                        partition_etab, partition_E_idx, _ = partition_etabs[partition_index[0, pos].cpu().item()]
                         unbound_predicted_E_pos = etab_utils.positional_potts_energy(
                             partition_etab, partition_E_idx, partition_seq, partition_pos
                         )
@@ -378,7 +378,7 @@ def tied_optimize_sequence(seq, etab, E_idx, mask, chain_mask, opt_type, seq_enc
                             partition_mask = partition_index == partition_index[0,pos]
                             partition_seq = seq[:, partition_mask[0]]
                             partition_pos = partition_mask[:, :pos].sum(dim=1).cpu().item()
-                            partition_etab, partition_E_idx = partition_etabs[partition_index[0, pos].cpu().item()]
+                            partition_etab, partition_E_idx, _ = partition_etabs[partition_index[0, pos].cpu().item()]
                             unbound_predicted_E_pos = etab_utils.positional_potts_energy(
                                 partition_etab, partition_E_idx, partition_seq, partition_pos
                             )

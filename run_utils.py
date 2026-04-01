@@ -128,7 +128,7 @@ def optimize_sequence(seq, etab, E_idx, mask, chain_mask, opt_type, seq_encoder,
                     partition_mask = partition_index == partition_index[0,pos]
                     partition_seq = seq[:, partition_mask[0]]
                     partition_pos = partition_mask[:, :pos].sum(dim=1).cpu().item()
-                    partition_etab, partition_E_idx = partition_etabs[partition_index[0, pos].cpu().item()]
+                    partition_etab, partition_E_idx, _seq = partition_etabs[partition_index[0, pos].cpu().item()]
                     unbound_predicted_E = etab_utils.positional_potts_energy(
                         partition_etab, partition_E_idx, partition_seq, partition_pos
                     )
@@ -541,9 +541,7 @@ def process_configs(cfg):
     """
     if cfg.inference.fixed_positions_json and os.path.isfile(cfg.inference.fixed_positions_json):
         with open(cfg.inference.fixed_positions_json, 'r') as json_file:
-            json_list = list(json_file)
-        for json_str in json_list:
-            fixed_positions_dict = json.loads(json_str)
+            fixed_positions_dict = json.load(json_file)
     else:
         fixed_positions_dict = None
     
@@ -1168,14 +1166,15 @@ def plot_data(data,
 def rewrite_pdb_sequences(pdb_dict, pdb_in_dir, pdb_out_dir):
     """
     Save new .pdb files with updated sequences
-    
+
     Parameters
     ----------
     pdb_dict : dict
-        Keys: "<pdb>|<vis_chains>|<hidden_chains>"
-        Values: (seq_string, sample)
-            seq_string: ':'-separated sequences for vis chains then hidden chains
-            sample: int (unused, but accepted)
+        Keys: "<pdb>|<hidden_chains>|<vis_chains>"
+        Values: (seq_string, sample_idx, sample_tag)
+            seq_string: ':'-separated sequences for hidden chains then vis chains
+            sample_idx: int (unused, but accepted)
+            sample_tag: str, e.g. "_3" or "" — appended to output filename
     pdb_in_dir : str
         Input directory
     pdb_out_dir : str
@@ -1188,24 +1187,31 @@ def rewrite_pdb_sequences(pdb_dict, pdb_in_dir, pdb_out_dir):
     parser = PDBParser(QUIET=True)
     io = PDBIO()
 
-    for key, (seq_string, _) in pdb_dict.items():
-        # Get chain info
-        chain_info = key.split("|")
+    for key, value in pdb_dict.items():
+        if len(value) == 3:
+            seq_string, _, sample_tag = value
+        else:
+            seq_string, _ = value
+            sample_tag = ""
+
+        # Get chain info — strip "#..." sample disambiguation suffix if present
+        base_key = key.split("#")[0]
+        chain_info = base_key.split("|")
         if len(chain_info) == 3:
             pdb_name, hidden_chains_str, vis_chains_str = chain_info
             vis_chains = vis_chains_str.split(":") if vis_chains_str else []
             hidden_chains = hidden_chains_str.split(":") if hidden_chains_str else []
             all_chains = hidden_chains + vis_chains
             if len(vis_chains) > 0:
-                out_name = f"{pdb_name}_{hidden_chains_str.replace(':', '-')}_{vis_chains_str.replace(':', '-')}.pdb"
+                out_name = f"{pdb_name}_{hidden_chains_str.replace(':', '-')}_{vis_chains_str.replace(':', '-')}{sample_tag}.pdb"
             else:
-                out_name = f"{pdb_name}_{hidden_chains_str.replace(':', '-')}.pdb"
+                out_name = f"{pdb_name}_{hidden_chains_str.replace(':', '-')}{sample_tag}.pdb"
         else:
             pdb_name = chain_info[0]
             wt_info = parse_PDB_seq_only(os.path.join(pdb_in_dir, pdb_name + '.pdb'))
             vis_chains = []
             all_chains = wt_info['chain_order']
-            out_name = f"{pdb_name}.pdb"
+            out_name = f"{pdb_name}{sample_tag}.pdb"
 
         seqs = seq_string.split(":")
         if len(seqs) != len(all_chains):
@@ -1235,35 +1241,8 @@ def rewrite_pdb_sequences(pdb_dict, pdb_in_dir, pdb_out_dir):
                 ]
 
                 if is_visible:
-                    # ----------------------------
-                    # Visible chain: gap-aware
-                    # ----------------------------
-                    seq_i = 0
-
-                    for res in residues:
-                        if seq_i >= len(raw_seq):
-                            raise ValueError(
-                                f"Sequence too short for visible chain {chain_id} in {key}"
-                            )
-
-                        aa1 = raw_seq[seq_i].upper()
-                        seq_i += 1
-
-                        # Gap → keep original residue
-                        if aa1 == "-":
-                            continue
-
-                        if aa1 not in AA1_TO_AA3:
-                            raise ValueError(
-                                f"Invalid amino acid '{aa1}' in chain {chain_id} in {key}"
-                            )
-
-                        res.resname = AA1_TO_AA3[aa1]
-
-                    if seq_i != len(raw_seq):
-                        raise ValueError(
-                            f"Sequence not fully consumed for visible chain {chain_id} in {key}"
-                        )
+                    # Visible chains are not designed; original residue names are correct.
+                    pass
 
                 else:
                     # ----------------------------

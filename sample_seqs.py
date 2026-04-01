@@ -160,6 +160,7 @@ def sample_seqs(args):
     out_seqs = {}
     opt_seqs = {}
     best_seqs = {}
+    all_pdb_seqs = {}  # all samples with chain-info keys, for PDB writing
 
     av_losses = {'pdb': [], 'seq_loss': [], 'nsr': [], 'potts_loss': []}
     if cfg.inference.optimize_fasta and os.path.exists(decoding_order_filename):
@@ -252,6 +253,13 @@ def sample_seqs(args):
                 })
 
             # Sort and Store
+            masked_ch = chain_dict[pdb_with_chain_suffix][0]
+            vis_ch = chain_dict[pdb_with_chain_suffix][1]
+            rewrite_key_base = (
+                pdb + "|" + ":".join(masked_ch) + "|" + ":".join(vis_ch)
+                if masked_ch
+                else pdb_with_chain_suffix
+            )
             sample_records = sorted(sample_records, key=lambda x: x['energy'])
             for k, rec in enumerate(sample_records):
                 sidx = rec['sample_idx']
@@ -270,8 +278,9 @@ def sample_seqs(args):
                 av_losses['nsr'].append(sample_nsr[sidx])
                 av_losses['potts_loss'].append(sample_nlcpl[sidx])
 
+                all_pdb_seqs[rewrite_key_base + "#" + sample_suffix] = (out_seqs[pdb_with_chain_suffix + sample_suffix], sidx, sample_suffix)
                 if k == 0: # Save best sequence and sample number
-                    best_seqs[pdb_with_chain_suffix] = (out_seqs[pdb_with_chain_suffix + sample_suffix], sidx)
+                    best_seqs[rewrite_key_base] = (out_seqs[pdb_with_chain_suffix + sample_suffix], sidx)
 
         # Optimization Step (Optional)
         if cfg.inference.optimization_mode:
@@ -352,12 +361,13 @@ def sample_seqs(args):
                 opt_seq = ':'.join(opt_seq[a:b] for a, b in zip(chain_cuts, chain_cuts[1:]))
                 opt_seqs[key] = opt_seq
 
-                if cfg.inference.num_samples == 1 or (not skip_calc and int(suffix_key.split('_')[1]) == best_seqs[pdb_with_chain_suffix][1]): # Overwrite best sequence if on appropriate sample
-                    if pdb_with_chain_suffix in best_seqs:
-                        suffix = best_seqs[pdb_with_chain_suffix][1]
+                all_pdb_seqs[rewrite_key_base + "#" + suffix_key] = (opt_seq, 0, suffix_key)
+                if cfg.inference.num_samples == 1 or (not skip_calc and int(suffix_key.split('_')[1]) == best_seqs[rewrite_key_base][1]): # Overwrite best sequence if on appropriate sample
+                    if rewrite_key_base in best_seqs:
+                        suffix = best_seqs[rewrite_key_base][1]
                     else:
                         suffix = 0
-                    best_seqs[pdb_with_chain_suffix] = (opt_seq, suffix)
+                    best_seqs[rewrite_key_base] = (opt_seq, suffix)
 
     print("Processing complete.")
 
@@ -389,7 +399,7 @@ def sample_seqs(args):
     # Write new .pdb files (if requested)
     if cfg.inference.write_pdb:
         print(f"Writing new .pdb files to {pdb_out_dir}")
-        rewrite_pdb_sequences(best_seqs, cfg.input_dir, pdb_out_dir)
+        rewrite_pdb_sequences(all_pdb_seqs, cfg.input_dir, pdb_out_dir)
 
 print("All outputs saved.")
 
